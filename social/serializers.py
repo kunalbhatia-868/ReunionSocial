@@ -96,8 +96,9 @@ class AllPostSerializer(serializers.ModelSerializer):
         fields=('post_id','title','description','created_on','like_count','comments')
     
     def get_comments(self, obj):
-        user=self.context['user']
-        comments = Comment.objects.filter(user=user)
+        # print(obj)
+        # user=self.context['user']
+        comments = Comment.objects.filter(post=obj)
         return [comment.text for comment in comments]
 
 class CommentSerializer(serializers.ModelSerializer):
