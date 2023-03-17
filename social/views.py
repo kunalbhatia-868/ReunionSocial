@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 import jwt
 from backend.settings import SECRET_KEY
-from social.models import Post
+from social.models import Post,Like
 from social.serializers import PostSerializer,CommentSerializer,LikeSerializer
 from accounts.models import UserProfile
 from accounts.serializers import UserProfileSerializer
@@ -71,6 +71,51 @@ class CommentCreateView(APIView):
         serializer=CommentSerializer(data=request.data, context={'user': user,'post':post})
         if serializer.is_valid():
             serializer.save()
+            post.comment_count+=1
+            post.save()
             return Response(serializer.data,status=status.HTTP_201_CREATED)
         else:
             return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
+        
+
+class LikeView(APIView):
+    permission_classes = (IsAuthenticated,)
+    
+    def post(self,request,post_id):
+        token=request.META['HTTP_AUTHORIZATION'].split(" ")[1]
+        user_email=jwt.decode(token,SECRET_KEY, algorithms=['HS256'])['user_id']
+        user=UserProfile.objects.get(email=user_email)
+        post=get_object_or_404(Post,post_id=post_id)
+        
+        relation=Like.objects.filter(user=user,post=post)
+        if relation.exists():
+            return Response({"message":"Already Liked this Post"},status=status.HTTP_400_BAD_REQUEST)
+
+        serializer=LikeSerializer(data=request.data, context={'user': user,'post':post})
+        if serializer.is_valid():
+            serializer.save()
+            post.like_count+=1
+            post.save()
+            return Response(serializer.data,status=status.HTTP_201_CREATED)
+        else:
+            return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
+        
+
+class UnLikeView(APIView):
+    permission_classes = (IsAuthenticated,)
+    
+    def post(self,request,post_id):
+        token=request.META['HTTP_AUTHORIZATION'].split(" ")[1]
+        user_email=jwt.decode(token,SECRET_KEY, algorithms=['HS256'])['user_id']
+        user=UserProfile.objects.get(email=user_email)
+        post=get_object_or_404(Post,post_id=post_id)
+        
+        relation=Like.objects.filter(user=user,post=post)
+        if not relation.exists():
+            return Response({"message":"Not Liked this Post. User is allowed to unlike post that they have liked."},status=status.HTTP_400_BAD_REQUEST)
+
+        relation.delete()
+        post.like_count-=1
+        post.save()
+        return Response({"message":"Post Unliked"},status=status.HTTP_201_CREATED)
+        

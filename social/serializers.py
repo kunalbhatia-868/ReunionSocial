@@ -68,8 +68,26 @@ class CommentSerializer(serializers.ModelSerializer):
         if not text:
             raise serializers.ValidationError("Text are required fields in Comment.")
         return data   
-        
+    
+  
 class LikeSerializer(serializers.ModelSerializer):
     class Meta:
         model=Like
-        fields="__all__"  
+        fields=[]
+
+    def to_representation(self, instance):
+        rep= super().to_representation(instance)
+        rep['user']=UserProfileSerializer(instance.user).data
+        rep['post']=PostSerializer(instance.post).data
+        return rep
+    
+    def create(self, validated_data):
+        try:
+            like = Like.objects.create(
+                user=self.context['user'],
+                post=self.context['post'],
+            )
+            return like
+        
+        except ValidationError as e:
+            raise serializers.ValidationError(e) 
